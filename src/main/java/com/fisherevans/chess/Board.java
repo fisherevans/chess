@@ -19,33 +19,19 @@ import java.util.Set;
  */
 public class Board implements Serializable {
     private final Map<Position, Piece> pieces;
-    private Color currentTurn;
-
-    private Board(Map<Position, Piece> pieces, Color currentTurn) {
-        this.pieces = pieces;
-        this.currentTurn = currentTurn;
-    }
 
     public Board(Map<Position, Piece> pieces) {
-        this(pieces, Color.WHITE);
+        this.pieces = pieces;
     }
 
     public Board() {
         this(new HashMap<>());
     }
 
-    public Color getCurrentTurn() {
-        return currentTurn;
-    }
-
-    public Piece getPiece(Position to) {
-        return pieces.get(to);
-    }
-
     public void applyMove(final Move move) throws Exception {
         Piece fromPiece = pieces.get(move.from);
-        if(fromPiece == null || fromPiece.color != currentTurn)
-            throw new Exception("Must move a " + currentTurn.name() + " piece!");
+        if(fromPiece == null)
+            throw new Exception("Must move a piece!");
         if(false == MoveManager.function(fromPiece).calc(move.from, p -> pieces.get(p)).contains(move.to))
             throw new Exception("Invalid move, to destination is not valid!");
         Piece toPiece = pieces.get(move.to);
@@ -53,7 +39,6 @@ public class Board implements Serializable {
             throw new Exception("You cannot take your own piece!");
         pieces.remove(move.from);
         pieces.put(move.to, fromPiece);
-        currentTurn = currentTurn.opposite();
     }
 
     public boolean isChecked(Color color) {
@@ -62,23 +47,6 @@ public class Board implements Serializable {
             if(move.captured != null && move.captured.color == color && move.captured.type == Type.KING)
                 return true;
         return false;
-    }
-
-    public boolean isCheckMated(Color color) {
-        int colorCount = 0;
-        for(Piece piece:pieces.values())
-            if(piece.color == color)
-                colorCount++;
-        boolean kingNeedsMove = colorCount == 1;
-        return kingNeedsMove;
-    }
-
-    public Set<Move> getAvailableMoves() {
-        return getAvailableMoves(currentTurn, true);
-    }
-
-    public Set<Move> getAvailableMoves(boolean checkForCheck) {
-        return getAvailableMoves(currentTurn, checkForCheck);
     }
 
     public Set<Move> getAvailableMoves(Color color, boolean checkForCheck) {
@@ -94,8 +62,7 @@ public class Board implements Serializable {
                         try {
                             copy.applyMove(move);
                         } catch (Exception e) {
-                            e.printStackTrace();
-                            System.exit(2);
+                            throw new RuntimeException("This shouldn't happen", e);
                         }
                         if(false == copy.isChecked(color)) {
                             availableMoves.add(move);
@@ -134,7 +101,7 @@ public class Board implements Serializable {
     public Board copy() {
         Map<Position, Piece> newPieces = new HashMap<>();
         newPieces.putAll(pieces);
-        return new Board(newPieces, currentTurn);
+        return new Board(newPieces);
     }
 
     public static Board createDefaultBoard() {

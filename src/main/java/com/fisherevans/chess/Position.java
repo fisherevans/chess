@@ -57,12 +57,29 @@ public class Position implements Serializable {
     }
 
     public static Position fromString(final String encoded) {
-        final char[] chars = encoded.toCharArray();
+        final char[] chars = encoded.toLowerCase().toCharArray();
         if(chars.length != 3 || chars[1] != ENCODE_SEPARATOR)
             throw new RuntimeException(String.format(ERR_FMT_ENC, encoded));
         try {
-            final int tx = Integer.parseInt(String.valueOf(chars[0]));
-            final int ty = Integer.parseInt(String.valueOf(chars[2]));
+            int tx = -1, ty = -1;
+            for(int xid = 0;xid < X_TRANSLATION.length;xid++) {
+                if(chars[0] == X_TRANSLATION[xid]) {
+                    tx = xid;
+                    break;
+                }
+            }
+            if(tx == -1) {
+                throw new Exception("Invalid X value!");
+            }
+            for(int yid = 0;yid < Y_TRANSLATION.length;yid++) {
+                if(chars[2] == Y_TRANSLATION[yid]) {
+                    ty = yid;
+                    break;
+                }
+            }
+            if(ty == -1) {
+                throw new Exception("Invalid Y value!");
+            }
             return new Position(tx, ty);
         } catch (Exception e) {
             throw new RuntimeException(String.format(ERR_FMT_ENC, encoded), e);

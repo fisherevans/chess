@@ -3,14 +3,17 @@ package com.fisherevans.chess;
 import com.fisherevans.chess.Piece.Color;
 import com.fisherevans.chess.Piece.Type;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
 
 public class ChessGame {
     public static void main(String[] args) {
-        Map<String, Integer> wins = playMany(100);
+        Map<String, Integer> wins = playMany(100000);
+        println("\n\n");
         for(String color:wins.keySet()) {
             System.out.println(color + " won " + wins.get(color) + " times.");
         }
@@ -18,30 +21,40 @@ public class ChessGame {
 
     public static Map<String, Integer> playMany(int count) {
         Map<String, Integer> wins = new HashMap<>();
-        wins.put(winnerName(Color.BLACK), 0);
-        wins.put(winnerName(Color.WHITE), 0);
-        wins.put(winnerName(null), 0);
+        wins.put("Dummy", 0);
+        wins.put("Greedy", 0);
+        wins.put("Draw", 0);
         for(int id = 0;id < count;id++) {
-            String winner = playOne();
-            wins.put(winner, wins.get(winner) + 1);
+            GameIntelligence white = id % 2 == 0 ? GameIntelligence.dummy() : GameIntelligence.greedy();
+            GameIntelligence black = id % 2 == 0 ? GameIntelligence.greedy() : GameIntelligence.dummy();
+            Color winner = playOne(white, black);
+            String winnerName = "";
+            if(winner == null) {
+                winnerName = "Draw";
+            } else {
+                if(winner == Color.WHITE) {
+                    winnerName = id % 2 == 0 ? "Dummy" : "Greedy";
+                } else { // BLACK
+                    winnerName = id % 2 == 0 ? "Greedy" : "Dummy";
+                }
+            }
+            wins.put(winnerName, wins.get(winnerName) + 1);
         }
         return wins;
     }
 
-    public static String playOne() {
-        ChessGame game = new ChessGame(GameIntelligence.dummy(), GameIntelligence.greedy());
+    public static Color playOne(GameIntelligence white, GameIntelligence black) {
+        ChessGame game = new ChessGame(white, black);
         game.play();
-        return winnerName(game.getWinner());
-    }
-
-    public static String winnerName(Color color) {
-        return color == null ? "Draw" : color.name();
+        return game.getWinner();
     }
 
     private Board board;
     private Map<Color, GameIntelligence> ai = new HashMap<>();
     private boolean played = false;
     private Color winner = null;
+    private final List<Move> moves;
+    private Color currentTurn;
 
     public ChessGame(GameIntelligence white, GameIntelligence black) {
         this.board = Board.createDefaultBoard();
@@ -49,6 +62,8 @@ public class ChessGame {
         ai.put(Color.WHITE, white);
         black.initialize(board.copy(), Color.BLACK);
         ai.put(Color.BLACK, black);
+        moves = new ArrayList<>();
+        currentTurn = Color.WHITE;
     }
 
     public boolean isPlayed() {
@@ -57,6 +72,14 @@ public class ChessGame {
 
     public Color getWinner() {
         return winner;
+    }
+
+    public List<Move> getMoves() {
+        return moves;
+    }
+
+    public Color getCurrentTurn() {
+        return currentTurn;
     }
 
     public void play() {
@@ -74,26 +97,28 @@ public class ChessGame {
             if(wait) {
                 scanner.nextLine();
             }
-            System.out.println();
-            board.print(System.out);
-            System.out.println();
-            Set<Move> availableMoves = board.getAvailableMoves(true);
-            boolean inCheck = board.isChecked(board.getCurrentTurn());
-            System.out.println(board.getCurrentTurn() + " has " + availableMoves.size() + " available moves.");
+            println("");
+            if(doPrint) {
+                board.print(System.out);
+            }
+            println("");
+            Set<Move> availableMoves = board.getAvailableMoves(currentTurn, true);
+            boolean inCheck = board.isChecked(currentTurn);
+            println(currentTurn + " has " + availableMoves.size() + " available moves.");
             if(inCheck) {
-                System.out.println(board.getCurrentTurn() + " is in CHECK!");
+                println(currentTurn + " is in CHECK!");
             }
             if(availableMoves.size() == 0) {
                 if(inCheck) {
-                    endGame(board.getCurrentTurn().opposite(), "Check mate!", turn);
+                    endGame(currentTurn.opposite(), "Check mate!", turn);
                 } else {
-                    endGame(null, board.getCurrentTurn() + " is not in check, but cannot move. It's a draw!", turn);
+                    endGame(null, currentTurn + " is not in check, but cannot move. It's a draw!", turn);
                 }
                 return;
             }
-            lastMove = ai.get(board.getCurrentTurn()).calculateMove(lastMove, availableMoves);
+            lastMove = ai.get(currentTurn).calculateMove(lastMove, availableMoves);
             if(lastMove == null) {
-                endGame(board.getCurrentTurn().opposite(), board.getCurrentTurn() + " has forfeited!", turn);
+                endGame(currentTurn.opposite(), currentTurn + " has forfeited!", turn);
                 return;
             }
             try {
@@ -104,6 +129,7 @@ public class ChessGame {
                 e.printStackTrace();
                 System.exit(1);
             }
+            moves.add(lastMove);
             if(lastMove.captured != null) {
                 lastCapture = 0;
             }
@@ -115,17 +141,18 @@ public class ChessGame {
             if(isEndCondition(lastPawn, lastCapture, turn)) {
                 return;
             }
-            System.out.println("Turn " + (turn++) + " - " + lastMove.toLongString());
+            currentTurn = currentTurn.opposite();
+            println("Turn " + (turn++) + " - " + lastMove.toLongString());
         }
     }
 
     private void endGame(Color winner, String reason, int turns) {
         this.winner = winner;
         played = true;
-        System.out.println("--------------------\n");
-        System.out.println((winner == null ? "No one" : winner.name()) + " won the game!");
-        System.out.println(reason);
-        System.out.println("\nThe game took " + turns + " turns.");
+        println("--------------------\n");
+        println((winner == null ? "No one" : winner.name()) + " won the game!");
+        println(reason);
+        println("\nThe game took " + turns + " turns.");
     }
 
     private boolean isEndCondition(int lastPawn, int lastCapture, int turn) {
@@ -138,5 +165,19 @@ public class ChessGame {
             return true;
         }
         return false;
+    }
+
+    private static final boolean doPrint = false;
+
+    public static void println(String message) {
+        if(doPrint) {
+            System.out.println(message);
+        }
+    }
+
+    public static void print(String message) {
+        if(doPrint) {
+            System.out.print(message);
+        }
     }
 }

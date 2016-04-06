@@ -1,12 +1,5 @@
 package com.fisherevans.chess;
 
-import javafx.geometry.Pos;
-
-import java.util.HashSet;
-import java.util.Set;
-import java.util.function.Consumer;
-import java.util.function.Function;
-
 /**
  * Created by fisher.evans on 1/7/16.
  */
